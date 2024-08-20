@@ -70,14 +70,14 @@
     <form method="POST" action="">
         <input type="text" name="documento" placeholder="Ingrese número de documento" required>
         <input type="submit" value="Buscar">
-    </form>
+    </form> 
 
     <?php
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $documento = $_POST['documento'];
 
     // Conexión a la base de datos
-    $conn = new mysqli('localhost', 'root', '270898Dc.', 'mi_base_de_datos');
+    $conn = new mysqli('sql110.infinityfree.com', 'if0_37145405', '270898dC', 'if0_37145405_MI_BASE_DATOS');
 
     if ($conn->connect_error) {
         die("Conexión fallida: " . $conn->connect_error);
