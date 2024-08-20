@@ -1,90 +1,115 @@
-<?php
-require 'vendor/autoload.php';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Búsqueda de Usuarios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
 
-use PhpOffice\PhpSpreadsheet\IOFactory;
+        h2 {
+            text-align: center;
+        }
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_FILES["archivo_excel"]["tmp_name"])) {
-        $inputFileName = $_FILES["archivo_excel"]["tmp_name"];
-        $spreadsheet = IOFactory::load($inputFileName);
-        $sheet = $spreadsheet->getActiveSheet();
+        form {
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+        }
+
+        input[type="submit"] {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        td {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h2>Buscar Usuario por Documento</h2>
+
+    <form method="POST" action="">
+        <input type="text" name="documento" placeholder="Ingrese número de documento" required>
+        <input type="submit" value="Buscar">
+    </form>
+
+    <?php
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $documento = $_POST['documento'];
+
+        // Conexión a la base de datos
         $conn = new mysqli('localhost', 'root', '270898Dc.', 'mi_base_de_datos');
 
         if ($conn->connect_error) {
             die("Conexión fallida: " . $conn->connect_error);
         }
 
-        $highestRow = $sheet->getHighestRow();
+        // Preparar y ejecutar la consulta
+        $sql = "SELECT * FROM personas WHERE DOCUMENTO = ?";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param("s", $documento);
+        $stmt->execute();
+        $result = $stmt->get_result();
 
-        // Definir los EPS válidos
-        $valid_eps = ['CAJACOPI', 'COOSALUD', 'NUEVA EPS', 'SANITAS', 'FAMILIAR DE COLOMBIA', 'MUTUAL SER'];
-
-        // Leer el valor de EPS de la celda correspondiente
-        $eps_from_file = $sheet->getCell('G2')->getValue();
-
-        // Verificar si la EPS es válida
-        if (in_array($eps_from_file, $valid_eps)) {
-            // Eliminar registros existentes para la EPS
-            $delete_sql = "DELETE FROM personas WHERE EPS = ?";
-            $delete_stmt = $conn->prepare($delete_sql);
-            $delete_stmt->bind_param("s", $eps_from_file);
-            $delete_stmt->execute();
-            $delete_stmt->close();
-
-            for ($row = 2; $row <= $highestRow; $row++) {
-                $rowData = $sheet->rangeToArray('A' . $row . ':H' . $row, NULL, TRUE, TRUE, TRUE);
-                $data = $rowData[$row];
-
-                $tipo_documento = isset($data['A']) ? $data['A'] : '';
-                $documento = isset($data['B']) ? $data['B'] : '';
-                $apellido1 = isset($data['C']) ? $data['C'] : '';
-                $apellido2 = isset($data['D']) ? $data['D'] : '';
-                $nombre1 = isset($data['E']) ? $data['E'] : '';
-                $nombre2 = isset($data['F']) ? $data['F'] : '';
-                $eps = isset($data['G']) ? $data['G'] : '';
-                $servicios = isset($data['H']) ? $data['H'] : '';
-
-                // Verificar si el usuario ya existe con el mismo número de documento y tipo de documento
-                $check_sql = "SELECT SERVICIOS FROM personas WHERE DOCUMENTO = ? AND TIPO_DOCUMENTO = ?";
-                $check_stmt = $conn->prepare($check_sql);
-                $check_stmt->bind_param("ss", $documento, $tipo_documento);
-                $check_stmt->execute();
-                $check_stmt->store_result();
-
-                if ($check_stmt->num_rows > 0) {
-                    // Si el usuario existe, combinar los servicios
-                    $check_stmt->bind_result($existing_servicios);
-                    $check_stmt->fetch();
-                    // Concatenar los servicios y limpiar los duplicados
-                    $servicios_array = array_unique(array_merge(explode(', ', $existing_servicios), explode(', ', $servicios)));
-                    $servicios = implode(', ', $servicios_array);
-
-                    // Actualizar el registro existente
-                    $update_sql = "UPDATE personas SET SERVICIOS = ? WHERE DOCUMENTO = ? AND TIPO_DOCUMENTO = ?";
-                    $update_stmt = $conn->prepare($update_sql);
-                    $update_stmt->bind_param("sss", $servicios, $documento, $tipo_documento);
-                    $update_stmt->execute();
-                    $update_stmt->close();
-                } else {
-                    // Si el usuario no existe, insertar nuevo registro
-                    $sql = "INSERT INTO personas (TIPO_DOCUMENTO, DOCUMENTO, APELLIDO_1, APELLIDO_2, NOMBRE_1, NOMBRE_2, EPS, SERVICIOS) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                    $stmt = $conn->prepare($sql);
-                    $stmt->bind_param("ssssssss", $tipo_documento, $documento, $apellido1, $apellido2, $nombre1, $nombre2, $eps, $servicios);
-                    $stmt->execute();
-                    $stmt->close();
-                }
-
-                $check_stmt->close();
+        if ($result->num_rows > 0) {
+            echo "<table>";
+            echo "<tr><th>Nombre Completo</th><th>Documento</th><th>EPS</th><th>Servicios</th></tr>";
+            while ($row = $result->fetch_assoc()) {
+                $nombreCompleto = $row["NOMBRE_1"] . " " . $row["NOMBRE_2"] . " " . $row["APELLIDO_1"] . " " . $row["APELLIDO_2"];
+                echo "<tr>";
+                echo "<td>" . $nombreCompleto . "</td>";
+                echo "<td>" . $row["DOCUMENTO"] . "</td>";
+                echo "<td>" . $row["EPS"] . "</td>";
+                echo "<td>" . $row["SERVICIOS"] . "</td>";
+                echo "</tr>";
             }
-
-            echo "Datos de la EPS " . $eps_from_file . " insertados correctamente.";
+            echo "</table>";
         } else {
-            echo "La EPS " . $eps_from_file . " no es válida.";
+            echo "<p>No se encontraron resultados para el documento: " . htmlspecialchars($documento) . "</p>";
         }
 
+        $stmt->close();
         $conn->close();
-    } else {
-        echo "No se ha subido ningún archivo.";
     }
-}
+    ?>
+</body>
+</html>
