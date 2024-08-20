@@ -67,49 +67,7 @@
 <body>
     <h2>Buscar Usuario por Documento</h2>
 
-    <form method="POST" action="">
+    <form method="POST" action="buscar.php">
         <input type="text" name="documento" placeholder="Ingrese número de documento" required>
         <input type="submit" value="Buscar">
     </form>
-
-    <?php
-    if ($_SERVER["REQUEST_METHOD"] == "POST") {
-        $documento = $_POST['documento'];
-
-        // Conexión a la base de datos
-        $conn = new mysqli('localhost', 'root', '270898Dc.', 'mi_base_de_datos');
-
-        if ($conn->connect_error) {
-            die("Conexión fallida: " . $conn->connect_error);
-        }
-
-        // Preparar y ejecutar la consulta
-        $sql = "SELECT * FROM personas WHERE DOCUMENTO = ?";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("s", $documento);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        if ($result->num_rows > 0) {
-            echo "<table>";
-            echo "<tr><th>Nombre Completo</th><th>Documento</th><th>EPS</th><th>Servicios</th></tr>";
-            while ($row = $result->fetch_assoc()) {
-                $nombreCompleto = $row["NOMBRE_1"] . " " . $row["NOMBRE_2"] . " " . $row["APELLIDO_1"] . " " . $row["APELLIDO_2"];
-                echo "<tr>";
-                echo "<td>" . $nombreCompleto . "</td>";
-                echo "<td>" . $row["DOCUMENTO"] . "</td>";
-                echo "<td>" . $row["EPS"] . "</td>";
-                echo "<td>" . $row["SERVICIOS"] . "</td>";
-                echo "</tr>";
-            }
-            echo "</table>";
-        } else {
-            echo "<p>No se encontraron resultados para el documento: " . htmlspecialchars($documento) . "</p>";
-        }
-
-        $stmt->close();
-        $conn->close();
-    }
-    ?>
-</body>
-</html>
